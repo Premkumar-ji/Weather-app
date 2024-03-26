@@ -1,0 +1,128 @@
+/* index.css */
+
+html,
+body {
+    padding: 0;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+        Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #001231;
+    height: 100vh; /* Changed to 100vh for full viewport height */
+}
+
+.container {
+    width: 300px;
+    height: 480px;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(to top left, #434e98, #6fffa1cb);
+    position: relative;
+    border-radius: 10px;
+}
+
+.header {
+    width: inherit;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex-direction: row;
+}
+
+#input {
+    padding-left: 15px;
+    min-width: 200px;
+    border: 1.2px solid rgba(0, 0, 0, 0.726);
+    height: 4vh;
+    border-radius: 10vw;
+    font-size: 15px;
+}
+
+button {
+    display: flex;
+    height: 4.8vh;
+    width: 4.8vh;
+    border: 1.9px solid rgba(0, 0, 0, 0.726);
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+button .search-icon {
+    color: #000000bd;
+    background-color: transparent;
+    font-size: 20px;
+}
+
+.city {
+    font-size: 20px;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 300px;
+}
+
+.weather-icon img:hover {
+    background-color: red;
+}
+
+.city .city-name {
+    border-bottom: 4px solid #fafafa;
+}
+
+.temp {
+    font-size: 30px;
+    font-weight: 900;
+}
+
+.weather-icon img {
+    top: 45%;
+    left: 30%;
+    font-size: 30px;
+    position: absolute;
+    background: transparent;
+    width: 100px;
+    height: 100px;
+    display: none;
+}
+
+.weather-info {
+    display: flex;
+    align-items: last baseline;
+    justify-content: space-around;
+    width: 100%;
+    height: 200px;
+}
+
+.humidity {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    justify-content: space-around;
+}
+
+h4 {
+    padding: 0 0;
+    font-size: 20px;
+}
+
+.wind-speed {
+    display: flex;
+    flex-direction: column;
+    font-family: Times, serif;
+    justify-content: space-between;
+}
+
+p {
+    color: white;
+    max-width: 300px;
+}
