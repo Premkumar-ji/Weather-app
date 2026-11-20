@@ -13,7 +13,7 @@ const state = {
 const $ = (selector) => document.querySelector(selector);
 const hasValue = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 const OPENWEATHER_API = "https://api.openweathermap.org";
-const OPENWEATHER_API_KEY = "60a0c7e584eb6742cdd95cb487fa6226";
+const Weather = "60a0c7e584eb6742cdd95cb487fa6226";
 
 function iconUrl(icon) {
     return icon ? `https://openweathermap.org/img/wn/${icon}@4x.png` : "";
@@ -86,10 +86,10 @@ function openWeatherError(status, message = "") {
 }
 
 async function fetchOpenWeather(path, params, signal) {
-    if (!OPENWEATHER_API_KEY.trim()) throw new Error("The shared OpenWeather API key is not configured in index.js.");
+    if (!Weather.trim()) throw new Error("The shared OpenWeather API key is not configured in index.js.");
     const url = new URL(`${OPENWEATHER_API}${path}`);
     Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
-    url.searchParams.set("appid", OPENWEATHER_API_KEY.trim());
+    url.searchParams.set("appid", Weather.trim());
 
     let response;
     try {
@@ -141,7 +141,7 @@ async function fetchWeather(params, signal) {
 }
 
 async function loadWeather(params, label = "") {
-    if (!OPENWEATHER_API_KEY.trim()) {
+    if (!Weather.trim()) {
         state.requestId += 1;
         if (state.controller) state.controller.abort();
         state.controller = null;
@@ -498,7 +498,7 @@ $("#input").addEventListener("input", () => {
         $("#suggestions").hidden = true;
         return;
     }
-    if (!OPENWEATHER_API_KEY.trim()) {
+    if (!Weather.trim()) {
         $("#suggestions").hidden = true;
         return;
     }
@@ -618,7 +618,7 @@ $("#themeSelect").value = state.theme;
 applyTheme();
 
 const lastLocation = getRecent()[0];
-if (OPENWEATHER_API_KEY.trim()) {
+if (Weather.trim()) {
     if (lastLocation) loadWeather({ lat: lastLocation.lat, lon: lastLocation.lon }, lastLocation.name);
     else loadWeather({ city: "London" }, "London");
 } else {
