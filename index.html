@@ -1,44 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta name="theme-color" content="#153c5b">
+    <title>Atmos Weather</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="index.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
-
 <body>
-    <div class="container">
-        <div class="header">
-            <input type="text" id="input" placeholder="Enter your city here">
-            <button id="searchBtn"><i class="fab fa-searchengin search-icon"></i></button>
-        </div>
-        <div class="city">
-            <h1 class="city-name">city-name</h1>
-            <span class="temp">25°C</span>
-        </div>
-        <div class="weather-info">
-            <div class="humidity">
-                <h4>Humidity</h4>
-                <i class="fas fa-tint icon">
-                    <span class="humid-value">0%</span>
-                </i>
-            </div>
-            <div class="wind-speed">
-                <h4>Wind Speed</h4>
-                <i class="fas fa-wind">
-                    <span class="wind-num">0</span> <span>m/s</span>
-                </i>
-            </div>
-        </div>
-    </div>
-    <script src="index.js"></script>
-    <p>Since I do not have access to real-time weather APIs, I am using a JSON file as an example.</p>
-</body>
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Primary navigation">
+            <a class="brand" href="#" aria-label="Atmos Weather home">
+                <span class="brand-mark" aria-hidden="true">A</span>
+                <span>Atmos</span>
+            </a>
+            <nav>
+                <button class="nav-item active" data-view="today" title="Today"><span aria-hidden="true">⌂</span><span>Today</span></button>
+                <button class="nav-item" data-view="forecast" title="Forecast"><span aria-hidden="true">◷</span><span>Forecast</span></button>
+                <button class="nav-item" data-view="air" title="Air quality"><span aria-hidden="true">≋</span><span>Air</span></button>
+            </nav>
+            <button id="settingsButton" class="nav-item settings-button" title="Settings"><span aria-hidden="true">⚙</span><span>Settings</span></button>
+        </aside>
 
+        <main class="workspace">
+            <header class="topbar">
+                <div class="location-heading">
+                    <p id="currentDate" class="eyebrow">Local weather</p>
+                    <h1 id="locationName">Loading weather</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button id="locateButton" class="icon-button" title="Use my location" aria-label="Use my location">⌖</button>
+                    <button id="favoriteButton" class="icon-button" title="Save location" aria-label="Save location">☆</button>
+                    <button id="shareButton" class="icon-button" title="Share weather" aria-label="Share weather">↗</button>
+                    <button id="themeButton" class="icon-button" title="Toggle theme" aria-label="Toggle theme">◐</button>
+                </div>
+            </header>
+
+            <section class="search-wrap">
+                <form id="searchForm" role="search" autocomplete="off">
+                    <span aria-hidden="true">⌕</span>
+                    <input id="input" type="search" placeholder="Search city or postcode" aria-label="Search city or postcode" />
+                    <button id="searchBtn" type="submit">Search</button>
+                </form>
+                <div id="suggestions" class="suggestions" role="listbox" hidden></div>
+            </section>
+
+            <div id="statusBanner" class="status-banner" role="status" hidden></div>
+
+            <div class="dashboard">
+                <section id="todaySection" class="hero-grid">
+                    <article class="current-card weather-card">
+                        <div class="current-top">
+                            <div>
+                                <p class="section-label">Now</p>
+                                <div class="temperature-row">
+                                    <span id="temperature" class="temperature">--°</span>
+                                    <img id="weatherIcon" class="weather-icon" alt="" />
+                                </div>
+                                <h2 id="condition">Loading</h2>
+                                <p id="description" class="description">Fetching the latest conditions</p>
+                            </div>
+                            <button id="unitButton" class="unit-button" title="Change temperature unit">°C</button>
+                        </div>
+                        <div class="sun-row">
+                            <div><span>Sunrise</span><strong id="sunrise">--</strong></div>
+                            <div class="sun-track" aria-hidden="true"><span id="sunProgress"></span></div>
+                            <div><span>Sunset</span><strong id="sunset">--</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="metrics-card weather-card">
+                        <div class="card-heading"><div><p class="section-label">Conditions</p><h2>Today at a glance</h2></div><span id="updateTime" class="updated">Updated --</span></div>
+                        <div id="metricsGrid" class="metrics-grid"></div>
+                    </article>
+                </section>
+
+                <section id="forecastSection" class="panel weather-card">
+                    <div class="card-heading">
+                        <div><p class="section-label">Next 24 hours</p><h2>Hourly forecast</h2></div>
+                        <div class="legend"><span class="legend-temp"></span>Temperature</div>
+                    </div>
+                    <div id="hourlyChart" class="hourly-chart" aria-label="24-hour temperature chart"></div>
+                    <div id="hourlyList" class="hourly-list" tabindex="0"></div>
+                </section>
+
+                <section class="daily-section">
+                    <div class="card-heading">
+                        <div><p class="section-label">Outlook</p><h2>5-day forecast</h2></div>
+                    </div>
+                    <div id="dailyList" class="daily-list"></div>
+                </section>
+
+                <section id="analyticsSection" class="analytics-grid">
+                    <article class="panel weather-card">
+                        <div class="card-heading"><div><p class="section-label">Precipitation</p><h2>Rain forecast</h2></div></div>
+                        <div id="precipChart" class="trend-chart"></div>
+                    </article>
+                    <article class="panel weather-card">
+                        <div class="card-heading"><div><p class="section-label">Atmosphere</p><h2>Humidity trend</h2></div></div>
+                        <div id="humidityChart" class="trend-chart"></div>
+                    </article>
+                </section>
+
+                <section id="airSection" class="air-grid">
+                    <article class="panel weather-card">
+                        <div class="card-heading"><div><p class="section-label">Environment</p><h2>Air quality</h2></div></div>
+                        <div id="airQuality"></div>
+                    </article>
+                    <article class="panel weather-card astronomy-card">
+                        <div class="card-heading"><div><p class="section-label">Astronomy</p><h2>Sun & daylight</h2></div></div>
+                        <div id="astronomy"></div>
+                        <p class="data-note">Moonrise, moon phase and moon illumination require an activated One Call 3.0 plan.</p>
+                    </article>
+                </section>
+
+                <section id="alertsSection" class="panel weather-card alerts-panel" hidden>
+                    <div class="card-heading"><div><p class="section-label">Official warnings</p><h2>Weather alerts</h2></div></div>
+                    <div id="alertsList"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <dialog id="settingsDialog">
+        <form method="dialog">
+            <div class="dialog-heading"><div><p class="section-label">Preferences</p><h2>Settings</h2></div><button value="close" class="icon-button" aria-label="Close">×</button></div>
+            <label>Temperature unit<select id="temperatureUnit"><option value="metric">Celsius (°C)</option><option value="imperial">Fahrenheit (°F)</option></select></label>
+            <label>Time format<select id="timeFormat"><option value="24">24-hour</option><option value="12">12-hour</option></select></label>
+            <label>Theme<select id="themeSelect"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+            <button id="saveSettings" value="save" class="primary-button">Save preferences</button>
+        </form>
+    </dialog>
+
+    <script src="index.js"></script>
+</body>
 </html>
 

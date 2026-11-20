@@ -1,0 +1,13 @@
+{
+  "name": "atmos-weather-platform",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "dev": "node --env-file-if-exists=.env server.js",
+    "check": "node --check server.js && node --check index.js"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  }
+}
