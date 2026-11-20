@@ -71,6 +71,8 @@ dark .sidebar, body.dark .sidebar { background: rgba(16,39,53,.92); }
 .suggestion:hover { background: var(--surface-soft); }
 .status-banner { margin-bottom: 16px; padding: 12px 14px; border-left: 3px solid #d89a42; border-radius: 6px; color: var(--ink); background: var(--surface); }
 .status-banner.error { border-left-color: #b85c5c; }
+.api-note { margin: 0 0 16px; padding: 12px 14px; border-left: 3px solid var(--accent-strong); border-radius: 6px; color: var(--muted); background: var(--surface); font-size: 12px; }
+.api-note a { color: var(--ink); font-weight: 700; }
 
 .dashboard { display: flex; flex-direction: column; gap: 18px; }
 .hero-grid { display: grid; grid-template-columns: minmax(280px, .82fr) minmax(420px, 1.18fr); gap: 18px; }
