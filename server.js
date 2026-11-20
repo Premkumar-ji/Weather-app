@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 // Set your own key in OPENWEATHER_API_KEY; never use or publish someone else's key.
-const API_KEY = process.env.OPENWEATHER_API_KEY;
+const API_KEY = process.env.OPENWEATHER_API_KEY || "60a0c7e584eb6742cdd95cb487fa6226";
 const BASE_URL = "https://api.openweathermap.org";
 const PORT = Number(process.env.PORT || 4173);
 const PUBLIC_DIR = __dirname;
