@@ -1,45 +1,22 @@
 # Atmos Weather
 
-A dependency-light, responsive weather platform built on OpenWeather's 2.5 APIs.
+A responsive weather app that fetches OpenWeather data directly from the browser. It is a static site and can be hosted on GitHub Pages; no backend or build step is required.
 
-## Run locally
+## API key
 
-Requirements: Node.js 20.6 or newer.
+The frontend makes direct requests to OpenWeather using one application-level key constant in `index.js`. Any configured value is public in the deployed JavaScript and browser network requests. Rotate any key that was previously committed.
 
-1. Copy `.env.example` to `.env`.
-2. Set `OPENWEATHER_API_KEY` to an OpenWeather API key with access to Current Weather, 5-day Forecast, Geocoding, and Air Pollution.
-3. Run `npm start`.
-4. Open `http://localhost:4173`.
+## GitHub Pages
 
-The API key is kept on the Node server and never sent to browser source code.
+Publish the repository root as the Pages site. The app uses relative asset and service-worker paths, so it works both at a domain root and under a project path such as `/Weather-app/`. There is no server-side runtime or compilation step.
 
-## API capability audit
+## API capabilities
 
-| Capability | Supported by existing free key | App behavior |
-|---|---|---|
-| Current temperature, feels-like, min/max, humidity | Yes | Implemented |
-| 5-day/3-hour forecast | Yes | Implemented; 24-hour view shows 8 supported points |
-| Daily 5-day summary | Derived from 3-hour forecast | Implemented |
-| Air quality and pollutant concentrations | Yes | Implemented |
-| Geocoding and autocomplete | Yes | Implemented |
-| Sunrise and sunset | Yes | Implemented |
-| Daylight duration | Derived locally | Implemented |
-| Visibility, pressure, clouds, wind, gust, direction | Yes | Implemented where returned |
-| Hourly rain/snow amounts | Yes where returned | Implemented |
-| Precipitation probability | Yes | Implemented |
-| Air pollution forecast | Yes | API available; current view implemented |
-| UV index | Not by the 2.5 current/forecast endpoints | Hidden |
-| Weather alerts | No on this key tier | Hidden; One Call 3.0 required |
-| Moonrise, moonset, moon phase, illumination | No on this key tier | Clearly marked unavailable |
-| One Call 48-hour hourly and 8-day daily data | No: One Call 3.0 returned 401 | Uses supported 2.5 endpoints |
+- Current conditions: OpenWeather Current Weather 2.5 API.
+- Hourly and 5-day outlook: 5-day/3-hour Forecast 2.5 API; the daily summary is derived from these intervals.
+- Air quality and pollutant concentrations: Air Pollution 2.5 API.
+- Search suggestions and location names: Geocoding API.
+- Sunrise, sunset, daylight, and other supported metrics are shown when returned.
+- UV index, One Call alerts, and moon phase data are not included because they require other endpoints or plans.
 
-## Architecture
-
-- `server.js`: server-side API proxy, retries, timeout, 10-minute response cache, and static server.
-- `index.js`: centralized weather state, data validation, rendering, local cache, units, favorites, recent locations, geolocation, and search.
-- `index.css`: responsive design system and weather themes.
-- `sw.js`: static offline shell caching. Live weather remains unavailable without network or cache.
-
-## Security
-
-The API key previously appeared directly in `index.js` and repository history. Rotate that key in the OpenWeather dashboard and replace `.env` with the new value. `.env` is excluded by `.gitignore`.
+The browser requires network access to OpenWeather for live weather. Cached weather may be shown when available.

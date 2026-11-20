@@ -1,7 +1,8 @@
 {
   "name": "Atmos Weather",
   "short_name": "Atmos",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#edf3f4",
   "theme_color": "#153c5b",

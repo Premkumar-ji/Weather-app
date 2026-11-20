@@ -5,11 +5,15 @@ const state = {
     weather: null,
     location: null,
     controller: null,
+    searchController: null,
     searchTimer: null,
+    requestId: 0,
 };
 
 const $ = (selector) => document.querySelector(selector);
 const hasValue = (value) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+const OPENWEATHER_API = "https://api.openweathermap.org";
+const OPENWEATHER_API_KEY = "60a0c7e584eb6742cdd95cb487fa6226";
 
 function iconUrl(icon) {
     return icon ? `https://openweathermap.org/img/wn/${icon}@4x.png` : "";
@@ -72,23 +76,79 @@ function readCached(location) {
     } catch (_) { return null; }
 }
 
-async function fetchWeather(params, options = {}) {
-    if (state.controller) state.controller.abort();
-    state.controller = new AbortController();
-    const timeout = setTimeout(() => state.controller.abort(), 15000);
-    const search = new URLSearchParams({ ...params, units: state.units });
+function openWeatherError(status, message = "") {
+    if (status === 401) return "OpenWeather rejected this API key. Check the key in Settings; a new key may take time to activate.";
+    if (status === 403) return "This OpenWeather service is not enabled for this API key.";
+    if (status === 404) return "That location was not found. Check the city name and try again.";
+    if (status === 429) return "OpenWeather's rate limit was reached. Wait a moment, then try again.";
+    if (status >= 500) return "OpenWeather is temporarily unavailable. Try again shortly.";
+    return message || `OpenWeather request failed (${status}).`;
+}
 
+async function fetchOpenWeather(path, params, signal) {
+    if (!OPENWEATHER_API_KEY.trim()) throw new Error("The shared OpenWeather API key is not configured in index.js.");
+    const url = new URL(`${OPENWEATHER_API}${path}`);
+    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+    url.searchParams.set("appid", OPENWEATHER_API_KEY.trim());
+
+    let response;
     try {
-        const response = await fetch(`/api/weather?${search}`, { signal: state.controller.signal });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.message || "Weather data is unavailable.");
-        return payload;
-    } finally {
-        clearTimeout(timeout);
+        response = await fetch(url, { signal });
+    } catch (error) {
+        if (error.name === "AbortError") throw error;
+        throw new Error("Could not reach OpenWeather. Check your internet connection and try again.");
     }
+
+    let payload;
+    try {
+        payload = await response.json();
+    } catch (_) {
+        throw new Error("OpenWeather returned an invalid response. Please try again later.");
+    }
+    if (!response.ok) throw new Error(openWeatherError(response.status, payload?.message));
+    return payload;
+}
+
+async function fetchWeather(params, signal) {
+    const locationParams = params.city
+        ? { q: params.city }
+        : { lat: params.lat, lon: params.lon };
+    const current = await fetchOpenWeather("/data/2.5/weather", { ...locationParams, units: state.units }, signal);
+    const lat = current.coord?.lat;
+    const lon = current.coord?.lon;
+    if (!hasValue(lat) || !hasValue(lon) || !current.main) {
+        throw new Error("OpenWeather returned incomplete current conditions for this location.");
+    }
+
+    const results = await Promise.allSettled([
+        fetchOpenWeather("/data/2.5/forecast", { lat, lon, units: state.units }, signal),
+        fetchOpenWeather("/data/2.5/air_pollution", { lat, lon }, signal),
+        fetchOpenWeather("/geo/1.0/reverse", { lat, lon, limit: 1 }, signal)
+    ]);
+    const failed = [];
+    if (results[0].status === "rejected") failed.push("forecast");
+    if (results[1].status === "rejected") failed.push("air quality");
+
+    return {
+        current,
+        forecast: results[0].status === "fulfilled" ? results[0].value : null,
+        air: results[1].status === "fulfilled" ? results[1].value : null,
+        location: results[2].status === "fulfilled" && Array.isArray(results[2].value)
+            ? results[2].value[0] || null
+            : null,
+        partialFailure: failed.length ? `Current weather loaded, but ${failed.join(" and ")} data is unavailable.` : ""
+    };
 }
 
 async function loadWeather(params, label = "") {
+    if (!OPENWEATHER_API_KEY.trim()) {
+        state.requestId += 1;
+        if (state.controller) state.controller.abort();
+        state.controller = null;
+        setStatus("The shared OpenWeather API key is not configured in index.js.", "error");
+        return;
+    }
+    const requestId = ++state.requestId;
     setStatus(label ? `Loading ${label}…` : "Loading latest weather…");
 
     const tentative = params.lat !== undefined
@@ -101,7 +161,18 @@ async function loadWeather(params, label = "") {
     }
 
     try {
-        const payload = await fetchWeather(params);
+        if (state.controller) state.controller.abort();
+        const controller = new AbortController();
+        state.controller = controller;
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        let payload;
+        try {
+            payload = await fetchWeather(params, controller.signal);
+        } finally {
+            clearTimeout(timeout);
+            if (state.controller === controller) state.controller = null;
+        }
+        if (requestId !== state.requestId) return;
         const current = payload.current;
         const location = payload.location;
         state.location = {
@@ -113,8 +184,9 @@ async function loadWeather(params, label = "") {
         saveResponse(state.location, payload);
         addRecent(state.location);
         renderWeather(payload);
-        setStatus("", "");
+        setStatus(payload.partialFailure, payload.partialFailure ? "error" : "");
     } catch (error) {
+        if (requestId !== state.requestId) return;
         if (error.name === "AbortError") {
             setStatus("The weather request was cancelled or timed out. Showing saved data where available.", "error");
         } else {
@@ -218,10 +290,11 @@ function renderForecast(payload) {
     const timezone = payload.current.timezone || 0;
     const list = payload.forecast?.list;
     if (!Array.isArray(list) || list.length === 0) {
-        $("#hourlyList").innerHTML = "";
-        $("#hourlyChart").innerHTML = "";
-        $("#dailyList").innerHTML = "";
-        setStatus("The 5-day forecast endpoint did not return forecast data.", "error");
+        $("#hourlyList").textContent = "Forecast data unavailable.";
+        $("#hourlyChart").textContent = "Forecast data unavailable.";
+        $("#dailyList").textContent = "Forecast data unavailable.";
+        $("#precipChart").textContent = "Forecast data unavailable.";
+        $("#humidityChart").textContent = "Forecast data unavailable.";
         return;
     }
 
@@ -253,6 +326,7 @@ function renderForecast(payload) {
 
     const days = [...groups.entries()].slice(0, 5).map(([, items]) => {
         const temps = items.map(item => item.main.temp).filter(hasValue);
+        if (temps.length === 0) return null;
         const rainValues = items.map(item => item.pop).filter(hasValue);
         const weatherCounts = items.map(item => item.weather?.[0]);
         const representative = weatherCounts[Math.floor(weatherCounts.length / 2)] || weatherCounts[0];
@@ -264,9 +338,9 @@ function renderForecast(payload) {
             rain: items.reduce((sum, item) => sum + (hasValue(item.rain?.["3h"]) ? item.rain["3h"] : 0), 0),
             weather: representative
         };
-    });
+    }).filter(Boolean);
 
-    $("#dailyList").replaceChildren(...days.map((day, index) => {
+    const dayCards = days.map((day, index) => {
         const card = document.createElement("article");
         card.className = "day-card";
         const name = document.createElement("span");
@@ -289,7 +363,9 @@ function renderForecast(payload) {
         detail.textContent = hasValue(day.pop) ? `${Math.round(day.pop * 100)}% rain` : "Rain unavailable";
         card.append(name, date, img, temps, detail);
         return card;
-    }));
+    });
+    if (dayCards.length) $("#dailyList").replaceChildren(...dayCards);
+    else $("#dailyList").textContent = "Daily forecast data unavailable.";
 
     renderLineChart("#precipChart", list.slice(0, 16).map(item => hasValue(item.pop) ? item.pop * 100 : null), list.slice(0, 16).map(item => formatTime(item.dt, timezone)), "percent");
     renderLineChart("#humidityChart", list.slice(0, 16).map(item => item.main.humidity), list.slice(0, 16).map(item => formatTime(item.dt, timezone)), "percent");
@@ -403,19 +479,37 @@ function updateFavoriteButton() {
 $("#searchForm").addEventListener("submit", async event => {
     event.preventDefault();
     const query = $("#input").value.trim();
-    if (query.length < 2) return;
+    if (query.length < 2) {
+        setStatus("Enter at least two characters to search for a location.", "error");
+        return;
+    }
+    if (state.searchController) state.searchController.abort();
+    clearTimeout(state.searchTimer);
     $("#suggestions").hidden = true;
     await loadWeather({ city: query }, query);
 });
 
 $("#input").addEventListener("input", () => {
     clearTimeout(state.searchTimer);
+    if (state.searchController) state.searchController.abort();
     const query = $("#input").value.trim();
-    if (query.length < 2) { $("#suggestions").hidden = true; return; }
+    if (query.length < 2) {
+        if (state.searchController) state.searchController.abort();
+        $("#suggestions").hidden = true;
+        return;
+    }
+    if (!OPENWEATHER_API_KEY.trim()) {
+        $("#suggestions").hidden = true;
+        return;
+    }
     state.searchTimer = setTimeout(async () => {
+        if (state.searchController) state.searchController.abort();
+        const controller = new AbortController();
+        state.searchController = controller;
+        const timeout = setTimeout(() => controller.abort(), 10000);
         try {
-            const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
-            const suggestions = await response.json();
+            const suggestions = await fetchOpenWeather("/geo/1.0/direct", { q: query, limit: 5 }, controller.signal);
+            if (state.searchController !== controller) return;
             const box = $("#suggestions");
             box.replaceChildren();
             if (!Array.isArray(suggestions) || suggestions.length === 0) { box.hidden = true; return; }
@@ -433,7 +527,13 @@ $("#input").addEventListener("input", () => {
                 box.append(button);
             });
             box.hidden = false;
-        } catch (_) { $("#suggestions").hidden = true; }
+        } catch (error) {
+            if (error.name !== "AbortError") setStatus(error.message, "error");
+            $("#suggestions").hidden = true;
+        } finally {
+            clearTimeout(timeout);
+            if (state.searchController === controller) state.searchController = null;
+        }
     }, 300);
 });
 
@@ -518,8 +618,12 @@ $("#themeSelect").value = state.theme;
 applyTheme();
 
 const lastLocation = getRecent()[0];
-if (lastLocation) loadWeather({ lat: lastLocation.lat, lon: lastLocation.lon }, lastLocation.name);
-else loadWeather({ city: "London" }, "London");
+if (OPENWEATHER_API_KEY.trim()) {
+    if (lastLocation) loadWeather({ lat: lastLocation.lat, lon: lastLocation.lon }, lastLocation.name);
+    else loadWeather({ city: "London" }, "London");
+} else {
+    setStatus("The shared OpenWeather API key is not configured in index.js.", "error");
+}
 
 document.querySelectorAll(".nav-item[data-view]").forEach(button => {
     button.addEventListener("click", () => {
@@ -531,5 +635,5 @@ document.querySelectorAll(".nav-item[data-view]").forEach(button => {
 });
 
 if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 }
